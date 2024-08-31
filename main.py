@@ -28,7 +28,7 @@ async def send_bus_info():
     now = datetime.now(pytz.timezone('Asia/Seoul'))
 
     # 5시 5분, 8분, 10분에 메세지 전송
-    if now.hour == 10 and now.minute in [40, 48, 50]:
+    if now.hour == 2 and now.minute in [10, 12, 14]:
         channel = client.get_channel(channel_id)
         if channel:
             await send_bus_data(channel)
