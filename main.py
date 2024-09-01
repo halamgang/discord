@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from discord.ext import tasks, commands
 from datetime import datetime
 import pytz
-import os  # os 모듈 추가
+import os
 
 # 디스코드 클라이언트 설정
 intents = discord.Intents.default()
@@ -27,7 +27,7 @@ async def on_ready():
 async def send_bus_info():
     now = datetime.now(pytz.timezone('Asia/Seoul'))
 
-    # 5시 5분, 8분, 10분에 메세지 전송
+    # 2시 10분, 12분, 14분에 메세지 전송
     if now.hour == 2 and now.minute in [10, 12, 14]:
         channel = client.get_channel(channel_id)
         if channel:
@@ -56,36 +56,34 @@ async def send_bus_data(channel):
 
             if result_code == '0':  # 정상 처리
                 item_list = root.findall('.//itemList')
+                bus_info = None
 
-                if item_list:
-                    # 가장 먼저 도착하는 버스의 예상 도착 시간 계산
-                    first_bus = min(item_list, key=lambda item: int(item.find('ARRIVALESTIMATETIME').text))
-                    arrival_estimate_time = int(first_bus.find('ARRIVALESTIMATETIME').text)
+                for item in item_list:
+                    bus_id = item.find('BUSID').text
+                    if bus_id == '7013725':  # 7013725의 정보를 찾음
+                        bus_info = item
+                        break
+
+                if bus_info:
+                    latest_stop_name = bus_info.find('LATEST_STOP_NAME').text
+                    rest_stop_count = bus_info.find('REST_STOP_COUNT').text
+                    arrival_estimate_time = int(bus_info.find('ARRIVALESTIMATETIME').text)
 
                     # 분과 초로 변환
                     minutes = arrival_estimate_time // 60
                     seconds = arrival_estimate_time % 60
                     time_formatted = f"{minutes}분 {seconds}초"
 
-                    # 임베드 제목을 가장 먼저 도착하는 버스의 예상 도착 시간으로 설정
-                    embed = discord.Embed(title=f"가장 먼저 도착하는 버스: {time_formatted}", color=0x00ff00)
-                    embed.add_field(name="버스 ID | 최근 정류소 명 | 남은 정류장 수", value="", inline=False)
+                    # 채널 제목 수정
+                    await channel.edit(name=f"버스 7013725 - {latest_stop_name}")
 
-                    for item in item_list:
-                        bus_id = item.find('BUSID').text
-                        latest_stop_name = item.find('LATEST_STOP_NAME').text
-                        rest_stop_count = item.find('REST_STOP_COUNT').text
-
-                        embed.add_field(name="", value=f"{bus_id} | {latest_stop_name} | {rest_stop_count}", inline=False)
-
-                    # Footer에 경과일 수 추가
-                    start_date = datetime(2024, 6, 2)
-                    days_passed = (datetime.now() - start_date).days
-                    embed.set_footer(text=f"❤ | Today + {days_passed}일")
+                    # 임베드 제목
+                    embed = discord.Embed(title=f"7013725의 예상 도착 시간: {time_formatted}", color=0x00ff00)
+                    embed.add_field(name="최근 정류소 명", value=f"{latest_stop_name} / 남은 정류장 수: {rest_stop_count}", inline=False)
 
                     await channel.send(embed=embed)
                 else:
-                    await channel.send("버스 정보가 없습니다.")
+                    await channel.send("7013725 버스 정보가 대기중입니다.")
             else:
                 await channel.send(f"오류 발생: {result_code} - {result_msg}")
         else:
@@ -99,5 +97,4 @@ async def 버스(ctx):
     if channel:
         await send_bus_data(channel)
 
-# 여기에 본인의 디스코드 봇 토큰을 환경변수에서 가져오기
 client.run(os.getenv('DISCORD_TOKEN'))  # 환경변수에서 토큰 가져오기
